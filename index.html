@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Virtual Piano - ColibriKinetix</title>
+    <meta name="description" content="A responsive virtual piano with Web Audio API. Play piano directly in your browser!">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body { 
+            display: flex; 
+            flex-direction: column;
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            margin: 0; 
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            font-family: 'Segoe UI', system-ui, sans-serif; 
+            touch-action: none;
+            overflow-x: hidden;
+            color: white;
+        }
+
+        .header {
+            text-align: center;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #00d4ff, #ff007f);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            color: #aaa;
+            max-width: 600px;
+            line-height: 1.6;
+        }
+
+        .volume-control {
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .volume-control label {
+            color: #aaa;
+        }
+
+        .volume-slider {
+            width: 200px;
+            height: 8px;
+            -webkit-appearance: none;
+            background: #444;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #00d4ff;
+            cursor: pointer;
+        }
+
+        .piano { 
+            display: flex; 
+            position: relative; 
+            user-select: none; 
+            margin: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            overflow: hidden;
+            padding: 10px;
+            background: #222;
+        }
+        
+        .key { 
+            border: none; 
+            cursor: pointer; 
+            transition: all 0.1s; 
+            position: relative; 
+            outline: none;
+        }
+        
+        /* Desktop/Standard Sizes */
+        .white { 
+            width: 60px; 
+            height: 250px; 
+            background: linear-gradient(to bottom, white 0%, #f0f0f0 100%);
+            border-radius: 0 0 8px 8px; 
+            z-index: 1; 
+            margin: 0 2px;
+        }
+        .white:hover { background: linear-gradient(to bottom, #f5f5f5 0%, #e8e8e8 100%); }
+        .white.active { 
+            background: linear-gradient(to bottom, #00d4ff 0%, #0099cc 100%);
+            box-shadow: 0 0 30px #00d4ff; 
+            transform: translateY(3px); 
+        }
+
+        .black { 
+            width: 40px; 
+            height: 150px; 
+            background: linear-gradient(to bottom, #222 0%, #000 100%);
+            margin-left: -20px; 
+            margin-right: -20px; 
+            z-index: 2; 
+            border-radius: 0 0 6px 6px;
+        }
+        .black:hover { background: linear-gradient(to bottom, #333 0%, #111 100%); }
+        .black.active { 
+            background: linear-gradient(to bottom, #ff007f 0%, #cc0066 100%);
+            box-shadow: 0 0 30px #ff007f; 
+            transform: translateY(3px); 
+        }
+
+        .label { 
+            position: absolute; 
+            bottom: 15px; 
+            width: 100%; 
+            text-align: center; 
+            font-size: 16px; 
+            color: #666; 
+            pointer-events: none; 
+            font-weight: bold;
+        }
+        .black .label { color: #888; bottom: 10px; font-size: 14px; }
+
+        .instructions {
+            margin-top: 30px;
+            color: #aaa;
+            text-align: center;
+            padding: 20px;
+            max-width: 800px;
+        }
+
+        .instructions h3 {
+            color: #00d4ff;
+            margin-bottom: 10px;
+        }
+
+        .instructions p {
+            margin: 5px 0;
+        }
+
+        /* MOBILE PORTRAIT */
+        @media (max-width: 768px) and (orientation: portrait) {
+            .header h1 { font-size: 2rem; }
+            .piano { transform: scale(0.9); }
+            .white { width: 14vw; height: 35vh; }
+            .black { width: 10vw; height: 20vh; margin-left: -5vw; margin-right: -5vw; }
+            .label { font-size: 18px; }
+        }
+
+        /* MOBILE LANDSCAPE */
+        @media (orientation: landscape) and (max-height: 500px) {
+            body { flex-direction: row; padding: 10px; }
+            .header { margin-bottom: 0; margin-right: 20px; }
+            .white { width: 8vw; height: 50vh; }
+            .black { width: 5vw; height: 30vh; margin-left: -2.5vw; margin-right: -2.5vw; }
+            .label { font-size: 12px; bottom: 5px; }
+        }
+
+        .keyboard-hint {
+            margin-top: 20px;
+            color: #888;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        footer {
+            margin-top: 30px;
+            color: #666;
+            text-align: center;
+            padding: 20px;
+            font-size: 0.9rem;
+        }
+
+        footer a {
+            color: #00d4ff;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>🎹 Virtual Piano</h1>
+    <p>Play this responsive virtual piano in your browser. Click/tap keys or use keyboard (ASDFGHJ...)</p>
+    
+    <div class="volume-control">
+        <label for="volume">Volume:</label>
+        <input type="range" id="volume" class="volume-slider" min="0" max="100" value="100">
+        <span id="volume-value">100%</span>
+    </div>
+</div>
+
+<div class="piano">
+    <div class="key white" data-note="C4"><span class="label">C</span></div>
+    <div class="key black" data-note="C#4"><span class="label">C#</span></div>
+    <div class="key white" data-note="D4"><span class="label">D</span></div>
+    <div class="key black" data-note="D#4"><span class="label">D#</span></div>
+    <div class="key white" data-note="E4"><span class="label">E</span></div>
+    <div class="key white" data-note="F4"><span class="label">F</span></div>
+    <div class="key black" data-note="F#4"><span class="label">F#</span></div>
+    <div class="key white" data-note="G4"><span class="label">G</span></div>
+    <div class="key black" data-note="G#4"><span class="label">G#</span></div>
+    <div class="key white" data-note="A4"><span class="label">A</span></div>
+    <div class="key black" data-note="A#4"><span class="label">A#</span></div>
+    <div class="key white" data-note="B4"><span class="label">B</span></div>
+</div>
+
+<div class="keyboard-hint">
+    Keyboard: A = C, W = C#, S = D, E = D#, D = E, F = F, T = F#, G = G, Y = G#, H = A, U = A#, J = B
+</div>
+
+<div class="instructions">
+    <h3>How to Use:</h3>
+    <p>• Click or tap on piano keys to play notes</p>
+    <p>• Use your computer keyboard (see mapping above)</p>
+    <p>• Adjust volume with the slider above</p>
+    <p>• Works on desktop, tablet, and mobile devices</p>
+</div>
+
+<footer>
+    Created with HTML5, CSS3 & Web Audio API | 
+    <a href="https://github.com/yourusername/virtual-piano" target="_blank">View on GitHub</a>
+</footer>
+
+<script>
+    // Audio Setup
+    const keys = document.querySelectorAll('.key');
+    const volumeSlider = document.getElementById('volume');
+    const volumeValue = document.getElementById('volume-value');
+    let audioCtx;
+    let masterGain;
+    let currentVolume = 1.0;
+
+    const frequencies = { 
+        "C4": 261.63, "C#4": 277.18, "D4": 293.66, "D#4": 311.13, 
+        "E4": 329.63, "F4": 349.23, "F#4": 369.99, "G4": 392.00, 
+        "G#4": 415.30, "A4": 440.00, "A#4": 466.16, "B4": 493.88 
+    };
+
+    // Keyboard mapping (Computer keyboard to piano notes)
+    const keyMap = {
+        'a': 'C4', 'w': 'C#4', 's': 'D4', 'e': 'D#4', 'd': 'E4',
+        'f': 'F4', 't': 'F#4', 'g': 'G4', 'y': 'G#4', 'h': 'A4',
+        'u': 'A#4', 'j': 'B4'
+    };
+
+    // Initialize audio context
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioCtx.createGain();
+            masterGain.connect(audioCtx.destination);
+            masterGain.gain.value = currentVolume;
+        }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+    }
+
+    // Play note with Web Audio API
+    function playNote(note, velocity = 1.0) {
+        initAudio();
+        
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        
+        osc.connect(gain);
+        gain.connect(masterGain);
+        
+        osc.frequency.value = frequencies[note];
+        osc.type = 'triangle';
+        
+        // ADSR envelope for better sound
+        const now = audioCtx.currentTime;
+        const attackTime = 0.01;
+        const decayTime = 0.1;
+        const sustainLevel = 0.7;
+        const releaseTime = 1.5;
+        
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(velocity, now + attackTime);
+        gain.gain.exponentialRampToValueAtTime(sustainLevel * velocity, now + attackTime + decayTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + attackTime + decayTime + releaseTime);
+        
+        osc.start(now);
+        osc.stop(now + attackTime + decayTime + releaseTime);
+    }
+
+    // Volume control
+    volumeSlider.addEventListener('input', function() {
+        currentVolume = this.value / 100;
+        if (masterGain) {
+            masterGain.gain.value = currentVolume;
+        }
+        volumeValue.textContent = `\${this.value}%`;
+    });
+
+    // Key interaction handlers
+    function handleInteraction(e, key) {
+        e.preventDefault(); 
+        if (!key.classList.contains('active')) {
+            key.classList.add('active');
+            playNote(key.dataset.note);
+        }
+    }
+
+    function stopInteraction(key) {
+        key.classList.remove('active');
+    }
+
+    // Setup piano key events
+    keys.forEach(key => {
+        key.addEventListener('mousedown', (e) => handleInteraction(e, key));
+        key.addEventListener('touchstart', (e) => handleInteraction(e, key), {passive: false});
+        
+        ['mouseup', 'mouseleave', 'touchend'].forEach(evt => {
+            key.addEventListener(evt, () => stopInteraction(key));
+        });
+    });
+
+    // Keyboard support
+    document.addEventListener('keydown', function(e) {
+        const note = keyMap[e.key.toLowerCase()];
+        if (note) {
+            e.preventDefault();
+            const keyElement = document.querySelector(`[data-note="\${note}"]`);
+            if (keyElement && !keyElement.classList.contains('active')) {
+                keyElement.classList.add('active');
+                playNote(note, 0.9);
+            }
+        }
+    });
+
+    document.addEventListener('keyup', function(e) {
+        const note = keyMap[e.key.toLowerCase()];
+        if (note) {
+            const keyElement = document.querySelector(`[data-note="\${note}"]`);
+            if (keyElement) {
+                keyElement.classList.remove('active');
+            }
+        }
+    });
+
+    // Wake up audio context on first interaction
+    document.addEventListener('click', function initAudioOnce() {
+        initAudio();
+        document.removeEventListener('click', initAudioOnce);
+    }, { once: true });
+</script>
+</body>
+</html>
